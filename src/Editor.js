@@ -115,6 +115,7 @@ public class SpringBootStartApplication {
     );
 
     this._editor.setModel(nextModel);
+    this._editor.focus();
   }
 
   updateEditorSelection = () => {
