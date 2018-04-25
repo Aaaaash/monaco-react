@@ -1,6 +1,7 @@
 const webpack = require('webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const htmlWebpackPlugin = require('html-webpack-plugin');
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 const path = require('path');
 
 const MonacoEditorSrc = path.join(__dirname, '..', '..', 'src');
@@ -42,6 +43,7 @@ module.exports = {
     new htmlWebpackPlugin({
       filename:'index.html',
     }),
+    new UglifyJsPlugin(),
     new CopyWebpackPlugin([{
       from: 'node_modules/monaco-editor/min/vs',
       to: 'vs',
