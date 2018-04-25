@@ -208,7 +208,10 @@ class CacheBridge implements CacheInterface
   }
 }
 
+const rootEle = document.createElement('div');
+document.body.appendChild(rootEle);
+
 render(
   <Editor />,
-  document.getElementById('app')
+  rootEle
 );

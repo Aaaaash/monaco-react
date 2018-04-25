@@ -1,5 +1,6 @@
 const webpack = require('webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const htmlWebpackPlugin = require('html-webpack-plugin');
 const path = require('path');
 
 const MonacoEditorSrc = path.join(__dirname, '..', '..', 'src');
@@ -7,14 +8,14 @@ const MonacoEditorSrc = path.join(__dirname, '..', '..', 'src');
 module.exports = {
   entry: './src/Editor.js',
   output: {
-    path: path.join(__dirname, './lib/t'),
+    path: path.join(__dirname, './lib'),
     filename: 'index.js',
   },
   module: {
     rules: [
       {
         test: /\.html$/,
-        use: ['file?name=[name].[ext]'],
+        use: ['file-loader'],
       },
       {
         test: /\.(js|jsx)$/,
@@ -37,6 +38,9 @@ module.exports = {
     new webpack.SourceMapDevToolPlugin({ exclude: /node_modules/ }),
     new webpack.DefinePlugin({
       'process.env': { NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development') },
+    }),
+    new htmlWebpackPlugin({
+      filename:'index.html',
     }),
     new CopyWebpackPlugin([{
       from: 'node_modules/monaco-editor/min/vs',
