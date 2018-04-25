@@ -58,7 +58,7 @@ public class SpringBootStartApplication {
   }
 
   initSocket = () => {
-    const url = 'http://192.168.0.233:8848/';
+    const url = 'http://193.112.25.145:8848/';
     this.socketClient = io(url);
 
     this.socketClient.on('sys-msg', (msg) => {
@@ -191,8 +191,6 @@ class CacheBridge implements CacheInterface
     };
     return (
       <div>
-        <button onClick={this.handleLoading}>loading</button>
-        <button onClick={this.handleAddSelection}>添加光标</button>
         <button onClick={this.handleCreateRoom}>开始协同</button>
         <button onClick={this.handleJoinRoom}>加入协同</button>
         <MonacoEditor
