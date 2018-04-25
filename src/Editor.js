@@ -4,6 +4,11 @@ import io from 'socket.io-client';
 import MonacoEditor from '../node_modules/react-monaco-editor/lib/editor';
 
 import './style.css';
+import { DiffMatchPatch } from './diff';
+// const diff_match_patch = require('./diff'); 
+const Changeset = require('changesets').Changeset;
+
+const dmp = new DiffMatchPatch();
 
 const containerStyle = {
   position: 'fixed',
@@ -44,6 +49,7 @@ public class SpringBootStartApplication {
   }
   editorDidMount = (editor, monaco) => {
     this._editor = editor;
+    window.editor = editor;
     console.log(monaco);
 
     // this._editor.onDidChangeCursorSelection((e) => {
@@ -54,16 +60,15 @@ public class SpringBootStartApplication {
     this.initSocket();
 
     this._editor.onDidChangeCursorSelection((e) => {
-      const params = {
-        selection: e.selection,
-        id: this.socketClient.id,
-      }
-      this.visitorSelection = e.selection;
-      this.socketClient.emit('selectionUpdate', params);
-    });
-
-    this._editor.onDidChangeModelContent(e => {
-      console.log(e);
+      // console.log(e);
+      // if (e.source === 'keyboard') {
+        const params = {
+          selection: e.selection,
+          id: this.socketClient.id,
+        }
+        this.visitorSelection = e.selection;
+        this.socketClient.emit('selectionUpdate', params);
+      // }
     });
 
     this.socketClient.on('frent-selection-update', (params) => {
@@ -98,7 +103,18 @@ public class SpringBootStartApplication {
   }
 
   updateEditor = (editorData) => {
-    console.log(editorData);
+    const { newValue } = editorData;
+    const curValue = this._editor.getValue();
+    const diffChanges = dmp.diff_main(curValue, newValue);
+    const cs = Changeset.fromDiff(diffChanges);
+    const applied = cs.apply(curValue);
+
+    const nextModel = monaco.editor.createModel(
+      applied,
+      this.state.language
+    );
+
+    this._editor.setModel(nextModel);
   }
 
   updateEditorSelection = () => {
@@ -222,6 +238,7 @@ class CacheBridge implements CacheInterface
     };
     return (
       <div>
+        <button onClick={this.handleLoading}>loading</button>
         <button onClick={this.handleCreateRoom}>开始协同</button>
         <button onClick={this.handleJoinRoom}>加入协同</button>
         <MonacoEditor
