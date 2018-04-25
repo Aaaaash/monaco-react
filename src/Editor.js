@@ -83,7 +83,7 @@ public class SpringBootStartApplication {
   }
 
   initSocket = () => {
-    const url = 'http://193.112.25.145:8858/';
+    const url = 'http://193.112.25.145:8848/';
     this.socketClient = io(url);
 
     this.socketClient.on('sys-msg', (msg) => {
