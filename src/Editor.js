@@ -97,6 +97,7 @@ public class SpringBootStartApplication {
 
     this.socketClient.on('friend-update', (data) => {
       if (data.id !== this.socketClient.id) {
+        this.curPosition = this._editor.getPosition();
         this.updateEditor(data.data);
       }
     });
@@ -115,6 +116,8 @@ public class SpringBootStartApplication {
     );
 
     this._editor.setModel(nextModel);
+    this._editor.setPosition(this.curPosition);
+    // console.log(this.curPosition);
     this._editor.focus();
   }
 
