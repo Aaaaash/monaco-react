@@ -3,6 +3,8 @@ import { render } from 'react-dom';
 import io from 'socket.io-client';
 import MonacoEditor from '../node_modules/react-monaco-editor/lib/editor';
 
+import './style.css';
+
 const containerStyle = {
   position: 'fixed',
   width: '100%',
@@ -37,6 +39,8 @@ public class SpringBootStartApplication {
       `,
       language: 'java',
     }
+
+    this.oldDecorations = [];
   }
   editorDidMount = (editor, monaco) => {
     this._editor = editor;
@@ -48,17 +52,38 @@ public class SpringBootStartApplication {
     this._editor.focus();
 
     this.initSocket();
+
+    this._editor.onDidChangeCursorSelection((e) => {
+      const params = {
+        selection: e.selection,
+        id: this.socketClient.id,
+      }
+      this.visitorSelection = e.selection;
+      this.socketClient.emit('selectionUpdate', params);
+    });
+
+    this._editor.onDidChangeModelContent(e => {
+      console.log(e);
+    });
+
+    this.socketClient.on('frent-selection-update', (params) => {
+      if (params.id !== this.socketClient.id) {
+        this.visitorSelection = { ...params.selection, id: params.id };
+        this.updateEditorSelection();
+      }
+    });
   }
 
-  onChange = (newValue, data) => {
-    const selection = this._editor.getSelection();
-    const selections = this._editor.getSelections();
-
-    this.socketClient.emit('fileUpdate', { id: this.socketClient.id, data });
+  onChange = (newValue, e) => {
+    const data = {
+      e,
+      newValue,
+    };
+    this.socketClient.emit('fileUpdate', { id: this.socketClient.id, data, newValue });
   }
 
   initSocket = () => {
-    const url = 'http://193.112.25.145:8848/';
+    const url = 'http://192.168.0.233:8848/';
     this.socketClient = io(url);
 
     this.socketClient.on('sys-msg', (msg) => {
@@ -66,22 +91,28 @@ public class SpringBootStartApplication {
     });
 
     this.socketClient.on('friend-update', (data) => {
-      console.log(this.socketClient.id, data);
+      if (data.id !== this.socketClient.id) {
+        this.updateEditor(data.data);
+      }
     });
   }
 
-  handleAddSelection = () => {
-    const newSelection = {
-      selectionStartLineNumber: 2,
-      selectionStartColumn: 10,
-      positionColumn: 10,
-      positionLineNumber: 2,
-    };
-    const curSelections = this._editor.getSelections();
-    const selections = [...curSelections, newSelection];
+  updateEditor = (editorData) => {
+    console.log(editorData);
+  }
 
-    this._editor.setSelections(selections);
-    this._editor.focus();
+  updateEditorSelection = () => {
+    const { startLineNumber, startColumn, endLineNumber, endColumn } = this.visitorSelection;
+
+    const newDecorations = this._editor.deltaDecorations(this.oldDecorations, [
+      {
+        range: new monaco.Range(startLineNumber, startColumn, endLineNumber, endColumn),
+        options: { className: 'my-cursor' },
+      }
+    ]);
+    this.oldDecorations = newDecorations;
+    // this._editor.setSelections([curSelection, this.visitorSelection]);
+    // this._editor.focus();
   }
 
   handleLoading = () => {
