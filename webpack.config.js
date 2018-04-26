@@ -43,7 +43,6 @@ module.exports = {
     new htmlWebpackPlugin({
       filename:'index.html',
     }),
-    new UglifyJsPlugin(),
     new CopyWebpackPlugin([{
       from: 'node_modules/monaco-editor/min/vs',
       to: 'vs',

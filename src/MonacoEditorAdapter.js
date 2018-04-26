@@ -1,5 +1,14 @@
 import ot from "ot";
 import TextOperation from "./TextOperation";
+import { addStyleRule, multiline } from './helper';
+
+
+addStyleRule(multiline`
+  .my-cursor {
+    background: #ff004f;
+    width: 2px !important;
+  }
+`);
 
 // const TextOperation = ot.TextOperation;
 
@@ -10,7 +19,7 @@ function isSelectedSomthing(selection) {
 
 function getRemovedText(change, doc) {
   const { rangeLength, rangeOffset } = change;
-  return doc.substring(rangeOffset, rangeLength + rangeOffset);
+  return [doc.substring(rangeOffset, rangeLength + rangeOffset)];
 }
 
 function generateRangeFromIndex(op, editor) {
@@ -38,7 +47,7 @@ function generateRangeFromIndex(op, editor) {
 
 class MonacoEditorAdapter {
   static operationFromMonacoChanges(changes) {
-    let docLength = window.editor.getValue().length;
+    let docLength = window.editor.getModel().getValueLength();
     let operation = new TextOperation().retain(docLength);
     let inverse = new TextOperation().retain(docLength);
     for (let i = changes.length - 1; i >= 0; i -= 1) {
@@ -46,49 +55,50 @@ class MonacoEditorAdapter {
 
       const restLength =
         docLength - change.rangeOffset - change.text.length;
+        debugger
       operation = new TextOperation()
         .retain(change.rangeOffset)
         ["delete"](change.rangeLength)
-        .insert(change.text)
+        .insert([change.text].join('\n'))
         .retain(restLength)
         .compose(operation);
-
+      const removed = getRemovedText(change, window.editor.getValue());
       inverse = inverse.compose(
         new TextOperation()
           .retain(change.rangeOffset)
           ["delete"](change.text.length)
-          .insert(
-            change.rangeLength === 0
-              ? getRemovedText(change, window.editor.getValue())
-              : change.text
-          )
+          .insert(removed.join('\n'))
           .retain(restLength)
       );
-      docLength += change.rangeLength - change.text.length;
+      docLength += removed.length - change.text.length;
     }
-    console.log(operation, inverse);
+
     return [operation, inverse];
   }
 
   static applyOperationToMonaco(operation, editor) {
     const textModel = editor.getModel();
-    let range = {};
+    let range = {
+      startLineNumber: 0,
+      startColumn: 0,
+      endLineNumber: 0,
+      endColumn: 0,
+    };
     let text = "";
     let forceMoveMarkers = false;
+    let hasHead = false;
 
     const ops = operation.ops;
-    console.log(ops);
+    const operationsForEditor = [];
+
     for (let i = 0, l = ops.length; i < l; i += 1) {
       let op = ops[i];
       if (TextOperation.isRetain(op)) {
-        if (!range.startLineNumber && !range.startColumn) {
+        if (!hasHead) {
           const { lineNumber, colNumber } = generateRangeFromIndex(op, editor);
-          range = {
-            ...range,
-            startLineNumber: lineNumber,
-            startColumn: colNumber
-          };
+          range = { ...range, startLineNumber: lineNumber, startColumn: colNumber };
         }
+        hasHead = true;
       } else if (TextOperation.isInsert(op)) {
         text = op;
         forceMoveMarkers = true;
@@ -99,22 +109,17 @@ class MonacoEditorAdapter {
           endColumn: range.startColumn,
         };
       } else if (TextOperation.isDelete(op)) {
-        // forceMoveMarkers = false;
-        // const { lineNumber, colNumber } = generateRangeFromIndex(op, editor);
-        range = { ...range, endLineNumber: range.startLineNumber, endColumn: range.startColumn + op + op };
+        range = { ...range, endLineNumber: range.startLineNumber, endColumn: range.startColumn + op};
       }
     }
-    debugger
-    textModel.pushEditOperations(
-      editor.getSelection(),
-      [{
-        text,
-        range,
-        forceMoveMarkers
-      }],
-      this.callback,
-    );
-    // todo
+
+    operationsForEditor.push({
+      text,
+      range,
+      forceMoveMarkers,
+      identifier: 'ot-change',
+    })
+    textModel.pushEditOperations([], operationsForEditor);
   }
 
   callback = (params) => {
@@ -126,15 +131,16 @@ class MonacoEditorAdapter {
     this.changeInProgress = false;
     this.selectionChanged = false;
     this.editor = editor;
+    this.oldDecorations = [];
 
     editor.onDidChangeModelContent(this.onChange);
     editor.onDidFocusEditor(this.onFocus);
     editor.onDidBlurEditor(this.onBlur);
+    editor.onDidChangeCursorSelection(this.onFocus);
   }
 
   onChange = e => {
     const { changes } = e;
-    console.log(changes);
     if (!this.ignoreNextChange) {
       const pair = MonacoEditorAdapter.operationFromMonacoChanges(
         changes,
@@ -182,11 +188,25 @@ class MonacoEditorAdapter {
     this.editor.setSelection(selection);
   };
 
-  setOtherCursor = (position, hue, name) => {};
+  setOtherCursor = (position, hue, name) => {
+    console.log(position);
+  };
 
-  setOtherSelectionRange = (range, hue, name) => {};
+  setOtherSelectionRange = (range, hue, name) => {
+    console.log(range);
+  };
 
-  setOtherSelection = (selection, hue, name) => {};
+  setOtherSelection = (selection, hue, name) => {
+    console.log(selection);
+    const { startLineNumber, startColumn, endLineNumber, endColumn } = selection;
+    const newDecorations = this.editor.deltaDecorations(this.oldDecorations, [
+      {
+        range: new monaco.Range(startLineNumber, startColumn, endLineNumber, endColumn),
+        options: { className: 'my-cursor' },
+      }
+    ]);
+    this.oldDecorations = newDecorations;
+  };
 
   trigger = (event, ...args) => {
     const action = this.callbacks && this.callbacks[event];
