@@ -9,9 +9,10 @@ addStyleRule(multiline`
     background: #ff004f;
     width: 2px !important;
   }
+  .my-range {
+    background-color: green;
+  }
 `);
-
-// const TextOperation = ot.TextOperation;
 
 function isSelectedSomthing(selection) {
   const { startColumn, endColumn, startLineNumber, endLineNumber } = selection;
@@ -115,6 +116,7 @@ class MonacoEditorAdapter {
     this.selectionChanged = false;
     this.editor = editor;
     this.oldDecorations = [];
+    this.oldInlineDecorations = [];
     this.oldContentWidget = {
       getDomNode: () => null,
       getId: () => '',
@@ -179,7 +181,7 @@ class MonacoEditorAdapter {
     this.editor.setSelection(selection);
   };
 
-  setOtherCursor = (selection, hue, name) => {
+  setOtherCursorAndRange = (selection, hue, name) => {
     const { startLineNumber, startColumn, endLineNumber, endColumn } = selection;
     const temp = this.oldDecorations;
     this.oldDecorations = this.editor.deltaDecorations(temp, [
@@ -190,11 +192,24 @@ class MonacoEditorAdapter {
     ]);
     this.editor.removeContentWidget(this.oldContentWidget);
     this.setOtherUserName(selection, hue, name);
+
+    if (!isRange(selection)) {
+      this.oldInlineDecorations = this.editor.deltaDecorations(this.oldInlineDecorations, []);
+    } else {
+      const inlineDecorations = {
+        range: new monaco.Range(startLineNumber, startColumn, endLineNumber, endColumn),
+        options: { inlineClassName: 'my-range' },
+      };
+      const temp = this.oldInlineDecorations;
+      this.oldInlineDecorations = this.editor.deltaDecorations(temp, [
+        inlineDecorations,
+      ]);
+    }
   };
 
   setOtherUserName = (selection, hue, name) => {
     this.editor.removeContentWidget(this.oldContentWidget);
-    const { positionLineNumber, positionColumn } = selection;
+    const { endLineNumber, endColumn } = selection;
     this.oldContentWidget = {
       getId: () => name,
       getDomNode: () => {
@@ -207,8 +222,8 @@ class MonacoEditorAdapter {
       },
       getPosition: () => ({
         position: {
-          lineNumber: positionLineNumber,
-          column: positionColumn,
+          lineNumber: endLineNumber,
+          column: endColumn,
         },
         preference: [monaco.editor.ContentWidgetPositionPreference.ABOVE, monaco.editor.ContentWidgetPositionPreference.BELOW]
       })
@@ -216,20 +231,10 @@ class MonacoEditorAdapter {
     this.editor.addContentWidget(this.oldContentWidget);
   }
 
-  setOtherSelectionRange = (selection, hue, name) => {
-    // if (!this.oldContentWidget) this.oldContentWidget = {};
-    
-    // console.log(selection);
-  };
-
   setOtherSelection = (selection, hue, name) => {
     if (isEmpty(selection)) return;
 
-    if (isRange(selection)) {
-      this.setOtherSelectionRange(selection, hue, name);
-    } else {
-      this.setOtherCursor(selection, hue, name);
-    }
+    this.setOtherCursorAndRange(selection, hue, name);
   };
 
   trigger = (event, ...args) => {
