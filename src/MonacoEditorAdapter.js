@@ -1,4 +1,5 @@
 import ot from "ot";
+import { isEmpty } from 'lodash';
 import TextOperation from "./TextOperation";
 import { addStyleRule, multiline } from './helper';
 
@@ -22,27 +23,10 @@ function getRemovedText(change, doc) {
   return [doc.substring(rangeOffset, rangeLength + rangeOffset)];
 }
 
-function generateRangeFromIndex(op, editor) {
-  const sourceValue = editor.getValue();
-  const sourceDocArr = sourceValue.split("\n").map(l => l.length + 1);
-
-  let lineNumber = 0;
-  let colNumber = op;
-
-  for (let i = 0; i < sourceDocArr.length; i += 1) {
-    if (colNumber - sourceDocArr[i] <= 1) {
-      lineNumber = i + 1;
-      colNumber = colNumber + 1;
-      break;
-    } else {
-      colNumber = colNumber - sourceDocArr[i];
-    }
-  }
-  console.log(lineNumber, colNumber);
-  return {
-    lineNumber,
-    colNumber
-  };
+function isRange(selection) {
+  const { startLineNumber, startColumn, endLineNumber, endColumn } = selection;
+  if (startLineNumber !== endLineNumber || startColumn !== endColumn) return true;
+  return false;
 }
 
 class MonacoEditorAdapter {
@@ -95,21 +79,20 @@ class MonacoEditorAdapter {
       let op = ops[i];
       if (TextOperation.isRetain(op)) {
         if (!hasHead) {
-          const { lineNumber, colNumber } = generateRangeFromIndex(op, editor);
-          range = { ...range, startLineNumber: lineNumber, startColumn: colNumber };
+          const { lineNumber, column } = textModel.getPositionAt(op);
+          range = { ...range, startLineNumber: lineNumber, startColumn: column };
         }
         hasHead = true;
       } else if (TextOperation.isInsert(op)) {
         text = op;
-        forceMoveMarkers = true;
-        console.log(range);
         range = {
           ...range,
           endLineNumber: range.startLineNumber,
           endColumn: range.startColumn,
         };
       } else if (TextOperation.isDelete(op)) {
-        range = { ...range, endLineNumber: range.startLineNumber, endColumn: range.startColumn + op};
+        const { lineNumber, column } = textModel.getPositionAt(op);
+        range = { ...range, endLineNumber: range.startLineNumber, endColumn: range.startColumn + op + 1};
       }
     }
 
@@ -132,6 +115,14 @@ class MonacoEditorAdapter {
     this.selectionChanged = false;
     this.editor = editor;
     this.oldDecorations = [];
+    this.oldContentWidget = {
+      getDomNode: () => null,
+      getId: () => '',
+      getPosition: () => ({
+        position: { lineNumber: 0, column: 0 },
+        preference: [monaco.editor.ContentWidgetPositionPreference.ABOVE, monaco.editor.ContentWidgetPositionPreference.BELOW]
+      })
+    }
 
     editor.onDidChangeModelContent(this.onChange);
     editor.onDidFocusEditor(this.onFocus);
@@ -188,24 +179,57 @@ class MonacoEditorAdapter {
     this.editor.setSelection(selection);
   };
 
-  setOtherCursor = (position, hue, name) => {
-    console.log(position);
-  };
-
-  setOtherSelectionRange = (range, hue, name) => {
-    console.log(range);
-  };
-
-  setOtherSelection = (selection, hue, name) => {
-    console.log(selection);
+  setOtherCursor = (selection, hue, name) => {
     const { startLineNumber, startColumn, endLineNumber, endColumn } = selection;
-    const newDecorations = this.editor.deltaDecorations(this.oldDecorations, [
+    const temp = this.oldDecorations;
+    this.oldDecorations = this.editor.deltaDecorations(temp, [
       {
         range: new monaco.Range(startLineNumber, startColumn, endLineNumber, endColumn),
         options: { className: 'my-cursor' },
       }
     ]);
-    this.oldDecorations = newDecorations;
+    this.editor.removeContentWidget(this.oldContentWidget);
+    this.setOtherUserName(selection, hue, name);
+  };
+
+  setOtherUserName = (selection, hue, name) => {
+    this.editor.removeContentWidget(this.oldContentWidget);
+    const { positionLineNumber, positionColumn } = selection;
+    this.oldContentWidget = {
+      getId: () => name,
+      getDomNode: () => {
+        const p = document.createElement('p');
+        p.style.backgroundColor = '#ff004f';
+        p.style.fontSize = '12px';
+        p.innerHTML = name;
+        p.style.margin = '0px !important';
+        return p;
+      },
+      getPosition: () => ({
+        position: {
+          lineNumber: positionLineNumber,
+          column: positionColumn,
+        },
+        preference: [monaco.editor.ContentWidgetPositionPreference.ABOVE, monaco.editor.ContentWidgetPositionPreference.BELOW]
+      })
+    }
+    this.editor.addContentWidget(this.oldContentWidget);
+  }
+
+  setOtherSelectionRange = (selection, hue, name) => {
+    // if (!this.oldContentWidget) this.oldContentWidget = {};
+    
+    // console.log(selection);
+  };
+
+  setOtherSelection = (selection, hue, name) => {
+    if (isEmpty(selection)) return;
+
+    if (isRange(selection)) {
+      this.setOtherSelectionRange(selection, hue, name);
+    } else {
+      this.setOtherCursor(selection, hue, name);
+    }
   };
 
   trigger = (event, ...args) => {
