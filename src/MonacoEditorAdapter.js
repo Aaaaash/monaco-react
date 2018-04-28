@@ -214,6 +214,7 @@ class MonacoEditorAdapter {
       endColumn
     } = selection;
     const temp = this.oldDecorations;
+    if (selection.ranges) return false;
     this.oldDecorations = this.editor.deltaDecorations(temp, [
       {
         range: new monaco.Range(
