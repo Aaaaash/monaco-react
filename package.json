@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "start": "webpack-dev-server --hot --inline --progress --colors --port 8858",
-    "build": "rm -rf lib && webpack"
+    "build": "rm -rf dist && webpack"
   },
   "dependencies": {
     "babel-cli": "^6.10.1",

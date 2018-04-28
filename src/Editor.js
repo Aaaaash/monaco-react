@@ -3,12 +3,11 @@ import { render } from 'react-dom';
 import io from 'socket.io-client';
 import MonacoEditor from '../node_modules/react-monaco-editor/lib/editor';
 import './style.css';
-import { DiffMatchPatch } from './diff';
-import '../node_modules/ot/lib/index';
-const ot = require('ot');
+// const ot = require('ot');
 // import TextOperation from 'ot/lib/text-operation';
 // import SocketIOAdapter from 'ot/lib/socketio-adapter';
 import MonacoEditorAdapter from './MonacoEditorAdapter';
+import * as ot from './lib';
 // import EditorClient from 'ot/lib/editor-client';
 // const diff_match_patch = require('./diff'); 
 // import '../node_modules/ot/lib/text-operation';
@@ -41,12 +40,12 @@ class Editor extends PureComponent {
 
     this.oldDecorations = [];
   }
+
   editorDidMount = (editor, monaco) => {
     this._editor = editor;
     window.editor = editor;
     
     this.docLength = this._editor.getValue().length;
-
     // this._editor.onDidChangeCursorSelection((e) => {
     //   console.log(e);
     // })

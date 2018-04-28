@@ -9,7 +9,7 @@ const MonacoEditorSrc = path.join(__dirname, '..', '..', 'src');
 module.exports = {
   entry: './src/Editor.js',
   output: {
-    path: path.join(__dirname, './lib'),
+    path: path.join(__dirname, './dist'),
     filename: 'index.js',
   },
   module: {
@@ -43,6 +43,7 @@ module.exports = {
     new htmlWebpackPlugin({
       filename:'index.html',
     }),
+    new UglifyJsPlugin(),
     new CopyWebpackPlugin([{
       from: 'node_modules/monaco-editor/min/vs',
       to: 'vs',

@@ -1,6 +1,5 @@
-import ot from "ot";
 import { isEmpty } from "lodash";
-import { TextOperation } from "./ot";
+import { TextOperation } from "./lib";
 import { addStyleRule, multiline } from "./helper";
 
 addStyleRule(multiline`
@@ -19,7 +18,6 @@ function isSelectedSomthing(selection) {
 }
 
 function getRemovedText(change, doc) {
-  console.log(doc);
   const { rangeLength, rangeOffset } = change;
   return [doc.substring(rangeOffset, rangeLength + rangeOffset)];
 }
